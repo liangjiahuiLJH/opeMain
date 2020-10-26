@@ -1,6 +1,18 @@
 
 
 
+2020.10.26 升级正式矿池抵押数量及释放规则修改 程序执行 调试&核对：
+-- 保存users备份表users.bk用于核对
+select u1.id, u1.is_mining_pool, cond.effe_rig_num, cond.tot_cp, u1.hsts, u2.hsts, u1.hsts-u2.hsts hsts_gap, u1.mgg_hsts, u2.mgg_hsts, u1.mgg_hsts - u2.mgg_hsts mgg_hsts_gap, u1.unlock_hsts, u2.unlock_hsts, u1.unlock_hsts - u2.unlock_hsts unlock_hsts_gap, u2.unlock_hsts/u2.mgg_hsts penc from users u1 inner join users_bk u2 on u1.id = u2.id left join (select pool_id, sum(if(cmpt_pow>=300,1,0)) effe_rig_num, sum(cmpt_pow) tot_cp from pool_rigs group by pool_id) cond on cond.pool_id = u1.id where u1.mgg_hsts != u2.mgg_hsts order by penc, u1.unlock_hsts;
+
+-- 恢复备份数据，使程序可重复执行看效果
+update users u1 inner join users_bk u2 on u1.id = u2.id set u1.hsts = u2.hsts, u1.mgg_hsts = u2.mgg_hsts, u1.unlock_hsts = u2.unlock_hsts;
+delete from ssu_unls where created >= '2020-10-26 09:17:46';
+update ssu_cfgs set form_hsts = 100000;
+update ssu_unlock_pool_rules set effe_rig_num = (case when penc = 40 then 3 when penc = 70 then 5 when penc = 90 then 10 when 100 then 15 end), tot_cp = (case when penc = 40 then 1500 when penc = 70 then 3000 when penc = 90 then 7000 when 100 then 10000 end);
+
+
+
 2020.10.25 空投函数执行后核对：
 -- 表不存在则创建临时表
 CREATE TABLE `users_rwds` (		-- `users_to`
