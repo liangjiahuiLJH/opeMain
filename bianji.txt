@@ -1,6 +1,12 @@
 
 
 
+2020.11.06 奖励记录生成sql语句
+\(.*?\)[	]+\(.*\)
+insert into to_rwds(user_id,acct,rwds,date) values((select id from users where mobile = '\1' or email_addr = '\1'),'\1',\2,'2020-11-06');
+
+
+
 2020.10.26 升级正式矿池抵押数量及释放规则修改 程序执行 调试&核对：
 -- 保存users备份表users.bk用于核对
 select u1.id, u1.is_mining_pool, cond.effe_rig_num, cond.tot_cp, u1.hsts, u2.hsts, u1.hsts-u2.hsts hsts_gap, u1.mgg_hsts, u2.mgg_hsts, u1.mgg_hsts - u2.mgg_hsts mgg_hsts_gap, u1.unlock_hsts, u2.unlock_hsts, u1.unlock_hsts - u2.unlock_hsts unlock_hsts_gap, u2.unlock_hsts/u2.mgg_hsts penc from users u1 inner join users_bk u2 on u1.id = u2.id left join (select pool_id, sum(if(cmpt_pow>=300,1,0)) effe_rig_num, sum(cmpt_pow) tot_cp from pool_rigs group by pool_id) cond on cond.pool_id = u1.id where u1.mgg_hsts != u2.mgg_hsts order by penc, u1.unlock_hsts;
