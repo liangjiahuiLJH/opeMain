@@ -1,6 +1,20 @@
 
 
 
+2020.11.23 将交易手续费（USDT）用于奖励复投百分百用户
+1、查询用户信息及算力，并计算奖励：
+select id, coalesce(mobile,email_addr) acct, cmpt_pow, round(cmpt_pow/s.scp*2433.66) rwds, s.scp from users u inner join (select sum(cmpt_pow) scp from users where arr_rate = 1) s where arr_rate = 1;
+查询结果依次为：用户id，用户账号，算力值，应得奖励，复投百分百用户总算力；
+2、生成奖励记录sql语句：
+\(.*?\)[   | ]+\(.*?\)[	| ]+\(.*\)[	| ]+\(.*\)
+insert into to_rwds(user_id,acct,rwds,date) values(\1,'\2',\4,'2020-11-23');
+3、执行rwdUSDT.go：
+   go build rwdUSDT.go && ./rwdUSDT -acct "发放奖励账号" -date "发放奖励日期" -remark "转账备注" -url "数据库连接url"
+   如：./rwdUSDT -acct "1665791282@qq.com" -date "2020-11-23" -remark "交易手续费分红" -url "root:rich_hst_777@(192.168.182.128:33067)/h5?charset=utf8&parseTime=true&loc=Local&multiStatements=true"
+   -- 正式环境数据库连接为："hsc:Hschain2020hkdb@(rm-j6c4plvy6m87cy88mdo.mysql.rds.aliyuncs.com:3306)/h5?charset=utf8&parseTime=true&loc=Local&multiStatements=true"
+
+
+
 2020.11.06 奖励记录生成sql语句
 \(.*?\)[	]+\(.*\)
 insert into to_rwds(user_id,acct,rwds,date) values((select id from users where mobile = '\1' or email_addr = '\1'),'\1',\2,'2020-11-06');

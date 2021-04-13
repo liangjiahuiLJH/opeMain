@@ -59,7 +59,7 @@ func main() {
 
 	// 查询待奖励用户信息
 	users := []User{}
-	if err := db.Raw("select * from to_rwds where stat = 0 and user_id is not null and date = ?", date).Scan(&users).Error; err != nil {
+	if err := db.Raw("select id, coalesce(mobile,email_addr) acct, cmpt_pow from users where arr_rate = 1", date).Scan(&users).Error; err != nil {
 		errlog.Println("查询奖励信息错误：%s！", err)
 		os.Exit(1)
 	}
@@ -92,8 +92,8 @@ func main() {
 	rate1 := decimal.NewFromFloat(1.01)
 	rate2 := decimal.NewFromFloat(0.01)
 	var trAmount, fee decimal.Decimal
-	sql_ins1 := "insert into trans_records(user_id,typ,from_acct,to_acct,pid,asset,amount,fee,remark) values(?,1,?,?,?,'hst0',?,?,'培训奖励')"
-	sql_ins2 := "insert into trans_records(user_id,typ,from_acct,to_acct,pid,asset,amount,fee,remark) values(?,0,?,?,?,'hst0',?,0,'培训奖励')"
+	sql_ins1 := "insert into trans_records(user_id,typ,from_acct,to_acct,pid,asset,amount,fee,remark) values(?,1,?,?,?,'hst0',?,?,'发布会补助')"
+	sql_ins2 := "insert into trans_records(user_id,typ,from_acct,to_acct,pid,asset,amount,fee,remark) values(?,0,?,?,?,'hst0',?,0,'发布会补助')"
 	sql_upd1 := "update users set hst0s = hst0s - ? where id = ? and hst0s >= ?"
 	sql_upd2 := "update users set hst0s = hst0s + ? where id = ?"
 	sql_upd3 := "update to_rwds set stat = 1, pid = ? where id = ?"

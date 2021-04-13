@@ -248,7 +248,7 @@ func InitMysql() (*gorm.DB, error) {
 	maxOpenConns := 100
 
 	// url := "root:rich_hst_777@(192.168.182.131)/h5?charset=utf8&parseTime=true&loc=Local&multiStatements=true"
-	url := "root:rich_hst_777@(192.168.211.128:33067)/h5?charset=utf8&parseTime=true&loc=Local&multiStatements=true"
+	url := "root:rich_hst_777@(192.168.182.128:33067)/h5?charset=utf8&parseTime=true&loc=Local&multiStatements=true"
 	// url := "hsc:Hschain2020hkdb@(rm-j6c4plvy6m87cy88mdo.mysql.rds.aliyuncs.com:3306)/h5?charset=utf8&parseTime=true&loc=Local&multiStatements=true"
 	fmt.Printf("mysql url:%v\n", url)
 
