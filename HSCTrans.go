@@ -15,9 +15,9 @@ import (
 )
 
 type User struct {
-	UserID  uint
-	Acct    string
-	HST     decimal.Decimal `gorm:"column:hsts"`
+	UserID uint
+	Acct   string
+	// HST     decimal.Decimal `gorm:"column:hsts"`
 	HSC     decimal.Decimal `gorm:"column:hsc"`
 	HSCLock decimal.Decimal `gorm:"column:hsc_lock"`
 	HSCCir  decimal.Decimal `gorm:"column:hsc_cir"`
@@ -61,18 +61,19 @@ type TransRecord struct {
 }
 
 var (
-	db                                           *gorm.DB
-	errlog                                       = log.New(os.Stdout, "[Err] ", log.Ldate|log.Ltime|log.Lshortfile)
-	inflog                                       = log.New(os.Stdout, "[Info] ", log.Ldate|log.Ltime|log.Lshortfile)
-	warlog                                       = log.New(os.Stdout, "[War] ", log.Ldate|log.Ltime|log.Lshortfile)
-	fromAcctsStr, toAcct, ctn                    string
-	fromAccts                                    []string
-	remUnlock                                    decimal.Decimal
-	start                                        time.Time
-	spendTime                                    time.Duration
-	url, remark                                  string
-	totHST, totHSC, totHSCLock, totUSDT, totHST0 decimal.Decimal
-	transUSDTHST0                                bool
+	db                                                        *gorm.DB
+	errlog                                                    = log.New(os.Stdout, "[Err] ", log.Ldate|log.Ltime|log.Lshortfile)
+	inflog                                                    = log.New(os.Stdout, "[Info] ", log.Ldate|log.Ltime|log.Lshortfile)
+	warlog                                                    = log.New(os.Stdout, "[War] ", log.Ldate|log.Ltime|log.Lshortfile)
+	fromAcctsStr, toAcct, ctn                                 string
+	fromAccts                                                 []string
+	remUnlock                                                 decimal.Decimal
+	start                                                     time.Time
+	spendTime                                                 time.Duration
+	url, remark                                               string
+	totHST, totHSC, totHSCLock, totUSDT, totHST0, transAmount decimal.Decimal
+	transUSDTHST0                                             bool
+	transAmountFloat                                          float64
 )
 
 func main() {
@@ -81,6 +82,7 @@ func main() {
 	flag.StringVar(&fromAcctsStr, "fromAccts", "", "转出方账号，逗号分隔，如：\"18138440982,13512542584\"")
 	flag.StringVar(&toAcct, "toAcct", "", "接收方账号，如：\"12345678901\"")
 	flag.StringVar(&remark, "remark", "", "转账备注：\"系统转账\"")
+	flag.Float64Var(&transAmountFloat, "amount", 0.0, "固定转账数量，如56680.8711")
 	flag.BoolVar(&transUSDTHST0, "transUSDTHST0", false, "是否转USDT和HST0，如true表示转USDT和HST0")
 	// flag.StringVar(&url, "url", "", "url to connect to mysql, e.g.:\"root:rich_hst_777@(192.168.182.128:33067)/h5?charset=utf8&parseTime=true&loc=Local&multiStatements=true\"")
 	flag.Parse()
@@ -94,6 +96,9 @@ func main() {
 	// 	os.Exit(1)
 	// }
 	fromAccts = strings.Split(fromAcctsStr, ",")
+	if transAmountFloat != 0.0 {
+		transAmount = decimal.NewFromFloat(transAmountFloat)
+	}
 
 	url := "root:rich_hst_777@(192.168.182.128:33067)/h5?charset=utf8&parseTime=true&loc=Local&multiStatements=true"
 	// url := "hsc:Hschain2020hkdb@(rm-j6c4plvy6m87cy88m90110.mysql.rds.aliyuncs.com:3306)/h5?charset=utf8&parseTime=true&loc=Local&multiStatements=true"
@@ -136,13 +141,17 @@ func main() {
 	}
 	fuMap := make(map[uint]*User)
 	for i, u := range fromUsers {
+		if !transAmount.IsZero() {
+			fromUsers[i].HSC = transAmount
+			fromUsers[i].HSCLock = transAmount
+		}
 		fuMap[u.UserID] = &fromUsers[i]
 	}
 	for i, ls := range lss {
 		fuMap[ls.UserID].Lss = append(fuMap[ls.UserID].Lss, lss[i])
 	}
 	for _, fu := range fuMap {
-		totHST = totHST.Add(fu.HST)
+		// totHST = totHST.Add(fu.HST)
 		totHSC = totHSC.Add(fu.HSC)
 		totHSCLock = totHSCLock.Add(fu.HSCLock)
 		totUSDT = totUSDT.Add(fu.USDT)
@@ -181,27 +190,29 @@ func main() {
 	sql_ins_ur := "insert into eco_gov_upg_unlock_records(user_id,typ,amount,is_withd) values(?,4,?,1)"                                                                                                         // 插入转账方解锁记录
 
 	for _, fu := range fromUsers {
-		if tx = tx.Exec(sql_upd_fu, fu.HST, fu.HSC, fu.HSCLock, fu.HSCLock, fu.HSCLock, fu.USDT, fu.HST0, fu.UserID, fu.HST, fu.HSC, fu.HSCLock, fu.HSC, fu.HSCLock, fu.HSCLock, fu.HSCLock, fu.USDT, fu.HST0); tx.Error != nil || tx.RowsAffected != 1 && tx.RowsAffected != 3 {
-			// if tx = tx.Exec(sql_upd_fu, fu.HST, fu.HSC, fu.HSCLock, fu.HSCLock, fu.HSCLock, fu.UserID, fu.HST, fu.HSC, fu.HSCLock, fu.HSC, fu.HSCLock, fu.HSCLock, fu.HSCLock); tx.Error != nil || tx.RowsAffected != 1 && tx.RowsAffected != 3 {
+		// if tx = tx.Exec(sql_upd_fu, fu.HST, fu.HSC, fu.HSCLock, fu.HSCLock, fu.HSCLock, fu.USDT, fu.HST0, fu.UserID, fu.HST, fu.HSC, fu.HSCLock, fu.HSC, fu.HSCLock, fu.HSCLock, fu.HSCLock, fu.USDT, fu.HST0); tx.Error != nil || tx.RowsAffected != 1 && tx.RowsAffected != 3 {
+		// if tx = tx.Exec(sql_upd_fu, fu.HST, fu.HSC, fu.HSCLock, fu.HSCLock, fu.HSCLock, fu.UserID, fu.HST, fu.HSC, fu.HSCLock, fu.HSC, fu.HSCLock, fu.HSCLock, fu.HSCLock); tx.Error != nil || tx.RowsAffected != 1 && tx.RowsAffected != 3 {
+		if tx = tx.Exec(sql_upd_fu, 0, fu.HSC, fu.HSCLock, fu.HSCLock, fu.HSCLock, fu.USDT, fu.HST0, fu.UserID, 0, fu.HSC, fu.HSCLock, fu.HSC, fu.HSCLock, fu.HSCLock, fu.HSCLock, fu.USDT, fu.HST0); tx.Error != nil || tx.RowsAffected != 1 && tx.RowsAffected != 3 {
 			errlog.Println(err)
 			os.Exit(1)
 		}
 		trs := []TransRecord{}
-		if fu.HST.IsPositive() {
-			pid := strings.ReplaceAll(uuid.Must(uuid.NewV4()).String(), "-", "")
-			trs = append(trs, TransRecord{UserID: fu.UserID, Typ: 1, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "hst", Amount: fu.HST, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
-			trs = append(trs, TransRecord{UserID: tu.UserID, Typ: 0, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "hst", Amount: fu.HST, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
-		}
+		// if fu.HST.IsPositive() {
+		// 	pid := strings.ReplaceAll(uuid.Must(uuid.NewV4()).String(), "-", "")
+		// 	trs = append(trs, TransRecord{UserID: fu.UserID, Typ: 1, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "hst", Amount: fu.HST, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
+		// 	trs = append(trs, TransRecord{UserID: tu.UserID, Typ: 0, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "hst", Amount: fu.HST, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
+		// }
 		if fu.HSCLock.IsPositive() {
 			pid := strings.ReplaceAll(uuid.Must(uuid.NewV4()).String(), "-", "")
 			trs = append(trs, TransRecord{UserID: fu.UserID, Typ: 1, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "hsc_lock", Amount: fu.HSCLock, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
 			trs = append(trs, TransRecord{UserID: tu.UserID, Typ: 0, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "hsc_lock", Amount: fu.HSCLock, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
 		}
-		if fu.HSCCir.IsPositive() {
-			pid := strings.ReplaceAll(uuid.Must(uuid.NewV4()).String(), "-", "")
-			trs = append(trs, TransRecord{UserID: fu.UserID, Typ: 1, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "hsc_cir", Amount: fu.HSCCir, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
-			trs = append(trs, TransRecord{UserID: tu.UserID, Typ: 0, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "hsc_cir", Amount: fu.HSCCir, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
-		}
+		// 07-03：修复bug，HSCCir未转账，不生成交易记录
+		// if fu.HSCCir.IsPositive() {
+		// 	pid := strings.ReplaceAll(uuid.Must(uuid.NewV4()).String(), "-", "")
+		// 	trs = append(trs, TransRecord{UserID: fu.UserID, Typ: 1, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "hsc_cir", Amount: fu.HSCCir, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
+		// 	trs = append(trs, TransRecord{UserID: tu.UserID, Typ: 0, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "hsc_cir", Amount: fu.HSCCir, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
+		// }
 		if transUSDTHST0 && fu.USDT.IsPositive() {
 			pid := strings.ReplaceAll(uuid.Must(uuid.NewV4()).String(), "-", "")
 			trs = append(trs, TransRecord{UserID: fu.UserID, Typ: 1, FromAcct: fu.Acct, ToAcct: tu.Acct, Pid: pid, Asset: "usdt", Amount: fu.USDT, Fee: decimal.Zero, Remark: remark}) // 插入转账记录
